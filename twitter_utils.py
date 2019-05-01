@@ -114,7 +114,7 @@ class CorpusHandler(object):
         local_dt = local_tz.localize(dt)
 
         valid_results = []
-        for s in tweepy.Cursor(self.api.search, q=query, rpp=10, count=1000, lang='en').items(limit):
+        for s in tweepy.Cursor(self.api.search, q=query, rpp=10, count=100, lang='en').items(limit):
             if local_tz.localize(s.created_at) < local_dt:
                 valid_results.append(s)
 
@@ -243,11 +243,19 @@ class PreProcessor:
             raise
 
     @staticmethod
+    def _remove_http_tag(raw):
+        _s = raw
+        try:
+            _s = re.sub('http://[\w\.\/]+', '', _s, count=10).strip()
+            return s
+        except Exception as e:
+            return _s
+
+    @staticmethod
     def _remove_https_tag(raw):
         _s = raw
         try:
             _s = re.sub('https://[\w\.\/]+', '', _s, count=10).strip()
-            _s = re.sub('http://[\w\.\/]+', '', _s, count=10).strip()
             return _s
         except Exception as e:
             return _s
