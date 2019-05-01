@@ -65,25 +65,25 @@ class CorpusHandler(object):
             pass
 
     def load_corpus(self, filename='corpus.txt'):
-        self.gainer_corpus = self.loser_corpus = None
+        self.gainer_corpus = self.loser_corpus = dict()
 
         fp = open('gainer.' + filename, 'r')
         symbol = None
         for line in fp.readlines():
             if '>>>' in line:
-                symbol = line.replace('>>>', '')
+                symbol = line.strip().replace('>>>', '')
                 self.gainer_corpus[symbol] = list()
             else:
-                self.gainer_corpus[symbol].append(line)
+                self.gainer_corpus[symbol].append(line.strip())
         fp.close()
 
         fp = open('loser.' + filename, 'r')
         for line in fp.readlines():
             if '>>>' in line:
-                symbol = line.replace('>>>', '')
+                symbol = line.strip().replace('>>>', '')
                 self.loser_corpus[symbol] = list()
             else:
-                self.loser_corpus[symbol].append(line)
+                self.loser_corpus[symbol].append(line.strip())
 
     @staticmethod
     def get_dtm(corpus_dict, vocab, label):
