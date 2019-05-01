@@ -106,7 +106,7 @@ class CorpusHandler(object):
     def load_dtm(filename='dtm.npy'):
         return np.load(filename)
 
-    def collect_tweets(self, query, limit=1000, dt=datetime.datetime.now() - datetime.timedelta(1), tz='US/Eastern'):
+    def collect_tweets(self, query, limit=1000, dt=datetime.datetime.now(), tz='US/Eastern'):
 
         assert (isinstance(query, str))
 
@@ -114,7 +114,7 @@ class CorpusHandler(object):
         local_dt = local_tz.localize(dt)
 
         valid_results = []
-        for s in tweepy.Cursor(self.api.search, q=query, rpp=10, count=100, lang='en').items(limit):
+        for s in tweepy.Cursor(self.api.search, q=query, rpp=10, count=1000, lang='en').items(limit):
             if local_tz.localize(s.created_at) < local_dt:
                 valid_results.append(s)
 
@@ -246,11 +246,11 @@ class PreProcessor:
     def _remove_https_tag(raw):
         _s = raw
         try:
-            _s = re.sub('https://[\w\.\/]+', '', raw, count=10).strip()
-            _s = re.sub('http://[\w\.\/]+', '', raw, count=10).strip()
+            _s = re.sub('https://[\w\.\/]+', '', _s, count=10).strip()
+            _s = re.sub('http://[\w\.\/]+', '', _s, count=10).strip()
             return _s
         except Exception as e:
-            return raw
+            return _s
 
     @staticmethod
     def _tokenize(raw):
