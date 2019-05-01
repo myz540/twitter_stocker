@@ -9,7 +9,9 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 from collections import Counter
 import pandas_datareader as pdr
+import numpy as np
 import string
+from sklearn.feature_extraction.text import CountVectorizer
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
@@ -40,7 +42,71 @@ class CorpusHandler(object):
     def convert_list_to_corpus(text_list):
         return ' '.join(text_list)
 
-    def collect_tweets(self, query, limit=1000, dt=datetime.datetime.now(), tz='US/Eastern'):
+    def save_corpus(self, filename='corpus.txt'):
+        try:
+            with open('gainer.' + filename, 'w') as fp:
+
+                for symbol, tweet_list in self.gainer_corpus.items():
+                    fp.write('>>>' + symbol + '\n')
+                    for tweet in tweet_list:
+                        fp.write(tweet + '\n')
+
+        except UnicodeEncodeError as e:
+            pass
+
+        try:
+            with open('loser.' + filename, 'w') as fp:
+
+                for symbol, tweet_list in self.loser_corpus.items():
+                    fp.write('>>>' + symbol + '\n')
+                    for tweet in tweet_list:
+                        fp.write(tweet + '\n')
+        except UnicodeEncodeError as e:
+            pass
+
+    def load_corpus(self, filename='corpus.txt'):
+        self.gainer_corpus = self.loser_corpus = None
+
+        fp = open('gainer.' + filename, 'r')
+        symbol = None
+        for line in fp.readlines():
+            if '>>>' in line:
+                symbol = line.replace('>>>', '')
+                self.gainer_corpus[symbol] = list()
+            else:
+                self.gainer_corpus[symbol].append(line)
+        fp.close()
+
+        fp = open('loser.' + filename, 'r')
+        for line in fp.readlines():
+            if '>>>' in line:
+                symbol = line.replace('>>>', '')
+                self.loser_corpus[symbol] = list()
+            else:
+                self.loser_corpus[symbol].append(line)
+
+    @staticmethod
+    def get_dtm(corpus_dict, vocab, label):
+
+        vectorizer = CountVectorizer(vocabulary=vocab)
+        tweet_list = list()
+
+        for l in corpus_dict.values():
+            tweet_list.extend(l)
+
+        labels = [label*len(tweet_list)]
+
+        return vectorizer.fit_transform(tweet_list, labels)
+
+    @staticmethod
+    def save_dtm(dtm, filename='dtm'):
+        np.save(filename, dtm)
+
+    @staticmethod
+    def load_dtm(filename='dtm.npy'):
+        return np.load(filename)
+
+    def collect_tweets(self, query, limit=1000, dt=datetime.datetime.now() - datetime.timedelta(1), tz='US/Eastern'):
 
         assert (isinstance(query, str))
 
@@ -57,8 +123,8 @@ class CorpusHandler(object):
 
         return valid_results[:100]
 
-    def expanded_search(self, ticker, df):
-        alt_terms = df[df.loc[:, 'Symbol'] == ticker].loc[:, ['Symbol', 'Name', 'Sector']].values.tolist()[0]
+    def expanded_search(self, ticker):
+        alt_terms = self.company_df[self.company_df.loc[:, 'Symbol'] == ticker].loc[:, ['Symbol', 'Name', 'Sector']].values.tolist()[0]
 
         valid_results = []
         for term in alt_terms:
@@ -97,7 +163,7 @@ class CorpusHandler(object):
     def analyze_sentiment(word_list):
         sentiment_analyzer = SentimentIntensityAnalyzer()
 
-        sentiment_analyzer.polarity_scores(CorpusHandler.convert_list_to_corpus(word_list))
+        return sentiment_analyzer.polarity_scores(CorpusHandler.convert_list_to_corpus(word_list))
 
 
 class StockHandler(object):
@@ -136,8 +202,8 @@ class StockHandler(object):
         _df.sort_values('diff', inplace=True, ascending=False)
         _df.set_index('ticker', inplace=True, drop=True)
 
-        winners = _df.iloc[:3, :]
-        losers = _df.iloc[-3:, :]
+        winners = _df.iloc[:10, :]
+        losers = _df.iloc[-10:, :]
 
         return winners.to_dict()['diff'], losers.to_dict()['diff']
 
@@ -148,29 +214,43 @@ class PreProcessor:
         self._text = None
 
     def process_text_tweet(self, text):
-        self._text = text
+        try:
+            self._text = text
 
-        self._text = self._remove_https_tag(self._text)
-        self._text = self._tokenize(self._text)
-        self._text = self._lemmatize(self._text)
-        self._text = self._lower(self._text)
-        self._text = self._remove_symbols(self._text)
-        self._text = self._remove_stopwords(self._text)
-        return self._text
+            self._text = self._remove_https_tag(self._text)
+            self._text = self._tokenize(self._text)
+            self._text = self._lemmatize(self._text)
+            self._text = self._lower(self._text)
+            self._text = self._remove_symbols(self._text)
+            self._text = self._remove_stopwords(self._text)
+            return self._text
+        except Exception as e:
+            print("FAILED TO PROCESS: " + text)
+            raise
 
     def process_text_comment(self, text):
-        self._text = text
+        try:
+            self._text = text
 
-        self._text = self._tokenize(self._text)
-        self._text = self._lemmatize(self._text)
-        self._text = self._lower(self._text)
-        self._text = self._remove_symbols(self._text)
-        self._text = self._remove_stopwords(self._text)
-        return self._text
+            self._text = self._tokenize(self._text)
+            self._text = self._lemmatize(self._text)
+            self._text = self._lower(self._text)
+            self._text = self._remove_symbols(self._text)
+            self._text = self._remove_stopwords(self._text)
+            return self._text
+        except Exception as e:
+            print("FAILED TO PROCESS: " + text)
+            raise
 
     @staticmethod
     def _remove_https_tag(raw):
-        return re.sub('https://[\w\.\/]+', '', raw).strip()
+        _s = raw
+        try:
+            _s = re.sub('https://[\w\.\/]+', '', raw, count=10).strip()
+            _s = re.sub('http://[\w\.\/]+', '', raw, count=10).strip()
+            return _s
+        except Exception as e:
+            return raw
 
     @staticmethod
     def _tokenize(raw):
