@@ -73,7 +73,7 @@ kiwisolver==1.0.1
 lazy-object-proxy==1.2.2
 llvmlite==0.18.0
 locket==0.2.0
-lxml==3.7.2
+lxml==4.6.2
 MarkupSafe==0.23
 matplotlib==2.2.2
 menuinst==1.4.4
